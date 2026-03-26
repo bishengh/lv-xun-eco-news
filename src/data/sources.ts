@@ -2,7 +2,7 @@ import type { NewsSource } from '@/types/news'
 
 /**
  * 全国生态环境新闻来源配置
- * 包含生态环境部和 32 个省/自治区/直辖市环保官网
+ * 包含生态环境部和 34 个省/自治区/直辖市/特别行政区环保官网（共 35 个来源）
  */
 export const newsSources: NewsSource[] = [
   // ─── 国家级 ───
@@ -37,12 +37,12 @@ export const newsSources: NewsSource[] = [
   { id: 'sxn', name: '陕西省生态环境厅', shortName: '陕西', region: '陕西', url: 'https://sthjt.shaanxi.gov.cn', category: 'province' },
   { id: 'gs', name: '甘肃省生态环境厅', shortName: '甘肃', region: '甘肃', url: 'https://sthj.gansu.gov.cn', category: 'province' },
   { id: 'qh', name: '青海省生态环境厅', shortName: '青海', region: '青海', url: 'https://sthjt.qinghai.gov.cn', category: 'province' },
-  { id: 'tw', name: '台湾地区', shortName: '台湾', region: '台湾', url: '', category: 'province' },
+  { id: 'tw', name: '台湾地区环境部', shortName: '台湾', region: '台湾', url: 'https://www.moenv.gov.tw', category: 'province' },
 
   // ─── 自治区 ───
   { id: 'nmg', name: '内蒙古自治区生态环境厅', shortName: '内蒙古', region: '内蒙古', url: 'https://sthjt.nmg.gov.cn', category: 'autonomous' },
   { id: 'gx', name: '广西壮族自治区生态环境厅', shortName: '广西', region: '广西', url: 'https://sthjt.gxzf.gov.cn', category: 'autonomous' },
-  { id: 'xz', name: '西藏自治区生态环境厅', shortName: '西藏', region: '西藏', url: 'https://sthjt.xizang.gov.cn', category: 'autonomous' },
+  { id: 'xz', name: '西藏自治区生态环境厅', shortName: '西藏', region: '西藏', url: 'https://ee.xizang.gov.cn', category: 'autonomous' },
   { id: 'nx', name: '宁夏回族自治区生态环境厅', shortName: '宁夏', region: '宁夏', url: 'https://sthjt.nx.gov.cn', category: 'autonomous' },
   { id: 'xj', name: '新疆维吾尔自治区生态环境厅', shortName: '新疆', region: '新疆', url: 'https://sthjt.xinjiang.gov.cn', category: 'autonomous' },
 
