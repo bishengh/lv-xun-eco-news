@@ -6,3 +6,8 @@ dist-ssr
 vibe_images/
 tsconfig.app.tsbuildinfo
 .qoder/
+__pycache__/
+*.pyc
+.env
+services/scraper-service/output/
+RELEASE_NOTES_*.md

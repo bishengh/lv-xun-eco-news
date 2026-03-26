@@ -1,0 +1,69 @@
+version: "3.9"
+
+services:
+  # ─── 数据层：PostgreSQL ───
+  postgres:
+    image: postgres:16-alpine
+    container_name: lvxun-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lvxun
+      POSTGRES_USER: lvxun
+      POSTGRES_PASSWORD: lvxun_2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./services/api-service/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lvxun -d lvxun"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ─── 业务层：FastAPI ───
+  api-service:
+    build:
+      context: ./services/api-service
+      dockerfile: Dockerfile
+    container_name: lvxun-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://lvxun:lvxun_2026@postgres:5432/lvxun
+      DATABASE_URL_SYNC: postgresql://lvxun:lvxun_2026@postgres:5432/lvxun
+      CORS_ORIGINS: '["http://localhost:5173","http://localhost:3000","http://localhost"]'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ─── 爬虫服务 ───
+  scraper-service:
+    build:
+      context: ./services/scraper-service
+      dockerfile: Dockerfile
+    container_name: lvxun-scraper
+    environment:
+      DATABASE_URL: postgresql://lvxun:lvxun_2026@postgres:5432/lvxun
+      MAX_NEWS: "200"
+      MAX_PAGES: "6"
+      DATE_DAYS: "60"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ─── 表现层：React (dev 模式) ───
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: lvxun-web
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-service
+
+volumes:
+  pgdata:
