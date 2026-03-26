@@ -38,7 +38,12 @@ HEADERS = {
     'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
 }
 TIMEOUT = 20
-MAX_NEWS = 30
+MAX_NEWS = 200  # 单来源最大条数（支持多页）
+MAX_PAGES = 6   # 最多翻页数
+
+# ─── 日期过滤：近2月 ───
+from datetime import timedelta
+DATE_CUTOFF = (datetime.now() - timedelta(days=60)).strftime('%Y-%m-%d')
 
 # ─── 输出路径 ───
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'public', 'data')
@@ -145,51 +150,84 @@ def make_id(title, source_id):
     return hashlib.md5(raw.encode('utf-8')).hexdigest()[:12]
 
 
+def generate_paginated_urls(urls, max_pages=MAX_PAGES):
+    """为 URL 列表生成分页变体（中国政府网站常见分页模式）"""
+    all_urls = list(urls)  # 第1页（原始URL）
+    for url in urls:
+        for page in range(1, max_pages):
+            if url.endswith('/'):
+                all_urls.append(url + f'index_{page}.html')
+            elif url.endswith('/index.html'):
+                all_urls.append(url.replace('/index.html', f'/index_{page}.html'))
+            elif url.endswith('.html'):
+                base = url[:-5]
+                all_urls.append(f'{base}_{page}.html')
+            elif url.endswith('.shtml'):
+                base = url[:-6]
+                all_urls.append(f'{base}_{page}.shtml')
+            else:
+                sep = '' if url.endswith('/') else '/'
+                all_urls.append(url + sep + f'index_{page}.html')
+    return all_urls
+
+
+def filter_by_date(items, cutoff=DATE_CUTOFF):
+    """过滤：仅保留近2月新闻（无日期的也保留）"""
+    result = []
+    for item in items:
+        d = item.get('date', '')
+        if not d or d >= cutoff:
+            result.append(item)
+    return result
+
+
 # ─────────────────────────────────────────────
 # 各网站抓取策略
 # ─────────────────────────────────────────────
 
 def scrape_mee(source):
-    """生态环境部 - 新闻列表"""
-    urls = [
+    """生态环境部 - 新闻列表（多页）"""
+    base_urls = [
         'https://www.mee.gov.cn/ywdt/szyw/',
         'https://www.mee.gov.cn/ywdt/hjywnews/',
         'https://www.mee.gov.cn/ywdt/dfnews/',
     ]
     items = []
-    for list_url in urls:
-        html = fetch_page(list_url)
-        if not html:
-            continue
-        soup = BeautifulSoup(html, 'lxml')
-        for li in soup.select('li'):
-            a = li.select_one('a[href*=".shtml"]')
-            if not a:
+    for base_url in base_urls:
+        page_urls = [base_url] + [base_url + f'index_{p}.shtml' for p in range(1, MAX_PAGES)]
+        for list_url in page_urls:
+            html = fetch_page(list_url)
+            if not html:
                 continue
-            title = clean_text(a.get_text())
-            if not title or len(title) < 6:
-                continue
-            href = urljoin(list_url, a.get('href', ''))
-            date_str = ''
-            strong = li.select_one('strong')
-            span = li.select_one('div > span')
-            if strong and span:
-                day = clean_text(strong.get_text())
-                ym = clean_text(span.get_text())
-                date_str = parse_date(f"{ym}-{day}")
-            if not date_str:
-                date_span = li.select_one('span.date')
-                if date_span:
-                    date_str = parse_date(date_span.get_text())
-            if not date_str:
-                date_str = parse_date(href)
-            summary = ''
-            dd = li.select_one('dd')
-            if dd:
-                summary = clean_text(dd.get_text())[:200]
-            items.append({'title': title, 'url': href, 'date': date_str, 'summary': summary})
-            if len(items) >= MAX_NEWS:
-                return items
+            soup = BeautifulSoup(html, 'lxml')
+            for li in soup.select('li'):
+                a = li.select_one('a[href*=".shtml"]')
+                if not a:
+                    continue
+                title = clean_text(a.get_text())
+                if not title or len(title) < 6:
+                    continue
+                href = urljoin(list_url, a.get('href', ''))
+                date_str = ''
+                strong = li.select_one('strong')
+                span = li.select_one('div > span')
+                if strong and span:
+                    day = clean_text(strong.get_text())
+                    ym = clean_text(span.get_text())
+                    date_str = parse_date(f"{ym}-{day}")
+                if not date_str:
+                    date_span = li.select_one('span.date')
+                    if date_span:
+                        date_str = parse_date(date_span.get_text())
+                if not date_str:
+                    date_str = parse_date(href)
+                summary = ''
+                dd = li.select_one('dd')
+                if dd:
+                    summary = clean_text(dd.get_text())[:200]
+                items.append({'title': title, 'url': href, 'date': date_str, 'summary': summary})
+                if len(items) >= MAX_NEWS:
+                    return items
     return items
 
 
@@ -357,10 +395,9 @@ def scrape_table_list(source, news_urls, encoding=None, use_session=False):
 
 
 def scrape_shanghai(source):
-    """上海市生态环境局 — 特殊结构"""
-    urls = [
-        'https://sthj.sh.gov.cn/hbzhywpt1272/hbzhywpt1157/index.html',
-    ]
+    """上海市生态环境局 — 特殊结构（多页）"""
+    base = 'https://sthj.sh.gov.cn/hbzhywpt1272/hbzhywpt1157/'
+    urls = [base + 'index.html'] + [base + f'index_{p}.html' for p in range(1, MAX_PAGES)]
     items = []
     for list_url in urls:
         html = fetch_page(list_url)
@@ -401,32 +438,36 @@ def scrape_shanghai(source):
 
 
 def scrape_xizang(source):
-    """西藏自治区生态环境厅 — 新域名 ee.xizang.gov.cn"""
-    url = 'https://ee.xizang.gov.cn/xwzx/xzxw/'
+    """西藏自治区生态环境厅 — 新域名 ee.xizang.gov.cn（多页）"""
+    base = 'https://ee.xizang.gov.cn/xwzx/xzxw/'
+    page_urls = [base] + [base + f'index_{p}.html' for p in range(1, MAX_PAGES)]
     items = []
-    html = fetch_page(url)
-    if not html:
-        return items
-    soup = BeautifulSoup(html, 'lxml')
-    # 结构：div.dj-tr-new > span.xwzx-tr-title > a + span.xwzx-tr-time
-    for block in soup.select('div.dj-tr-new'):
-        a = block.select_one('span.xwzx-tr-title a, a')
-        time_span = block.select_one('span.xwzx-tr-time')
-        if not a:
+    for url in page_urls:
+        html = fetch_page(url)
+        if not html:
             continue
-        title = clean_text(a.get_text())
-        if not title or len(title) < 6:
-            continue
-        href = a.get('href', '')
-        if href and not href.startswith('http'):
-            href = urljoin(url, href)
-        date_str = parse_date(time_span.get_text()) if time_span else parse_date(href)
-        items.append({'title': title, 'url': href, 'date': date_str, 'summary': ''})
-        if len(items) >= MAX_NEWS:
-            return items
-    # 如果 dj-tr-new 找不到，fallback 到通用 li
-    if not items:
-        items = scrape_simple_list(source, [url])
+        soup = BeautifulSoup(html, 'lxml')
+        found = 0
+        for block in soup.select('div.dj-tr-new'):
+            a = block.select_one('span.xwzx-tr-title a, a')
+            time_span = block.select_one('span.xwzx-tr-time')
+            if not a:
+                continue
+            title = clean_text(a.get_text())
+            if not title or len(title) < 6:
+                continue
+            href = a.get('href', '')
+            if href and not href.startswith('http'):
+                href = urljoin(url, href)
+            date_str = parse_date(time_span.get_text()) if time_span else parse_date(href)
+            items.append({'title': title, 'url': href, 'date': date_str, 'summary': ''})
+            found += 1
+            if len(items) >= MAX_NEWS:
+                return items
+        if found == 0 and url == base:
+            # 首页就没找到 dj-tr-new，fallback 到通用 li
+            items = scrape_simple_list(source, [base])
+            break
     return items
 
 
@@ -653,47 +694,48 @@ def scrape_hongkong(source):
 
 
 def scrape_macau(source):
-    """澳门环境保护局 — ASP.NET 新闻列表"""
-    url = 'https://www.dspa.gov.mo/news.aspx'
+    """澳门环境保护局 — ASP.NET 新闻列表（多页）"""
+    page_urls = [f'https://www.dspa.gov.mo/news.aspx?current_page={p}' for p in range(1, MAX_PAGES + 1)]
     items = []
-    html = fetch_page(url)
-    if not html:
-        return items
-    soup = BeautifulSoup(html, 'lxml')
-    # DSPA 结构：div 中的 a[href*="news_detail.aspx"] + 日期文本
-    for a in soup.select('a[href*="news_detail.aspx"]'):
-        title = clean_text(a.get_text())
-        if not title or len(title) < 6:
+    for url in page_urls:
+        html = fetch_page(url)
+        if not html:
             continue
-        href = a.get('href', '')
-        if href and not href.startswith('http'):
-            href = urljoin(url, href)
-        # 日期在父级或兄弟元素中
-        date_str = ''
-        parent = a.find_parent()
-        if parent:
-            for el in parent.find_all(string=True):
-                d = parse_date(str(el))
-                if d:
-                    date_str = d
-                    break
-        if not date_str:
-            # 往上一级找
-            grandparent = parent.find_parent() if parent else None
-            if grandparent:
-                for el in grandparent.find_all(string=True):
+        soup = BeautifulSoup(html, 'lxml')
+        found = 0
+        for a in soup.select('a[href*="news_detail.aspx"]'):
+            title = clean_text(a.get_text())
+            if not title or len(title) < 6:
+                continue
+            href = a.get('href', '')
+            if href and not href.startswith('http'):
+                href = urljoin(url, href)
+            date_str = ''
+            parent = a.find_parent()
+            if parent:
+                for el in parent.find_all(string=True):
                     d = parse_date(str(el))
                     if d:
                         date_str = d
                         break
-        if not date_str:
-            date_str = parse_date(href)
-        items.append({'title': title, 'url': href, 'date': date_str, 'summary': ''})
-        if len(items) >= MAX_NEWS:
-            return items
-    # 如果 news_detail 找不到，fallback 到通用 li
+            if not date_str:
+                grandparent = parent.find_parent() if parent else None
+                if grandparent:
+                    for el in grandparent.find_all(string=True):
+                        d = parse_date(str(el))
+                        if d:
+                            date_str = d
+                            break
+            if not date_str:
+                date_str = parse_date(href)
+            items.append({'title': title, 'url': href, 'date': date_str, 'summary': ''})
+            found += 1
+            if len(items) >= MAX_NEWS:
+                return items
+        if found == 0:
+            break  # 没有更多页了
     if not items:
-        items = scrape_simple_list(source, [url])
+        items = scrape_simple_list(source, ['https://www.dspa.gov.mo/news.aspx'])
     return items
 
 
@@ -1002,6 +1044,9 @@ def scrape_source(source):
         print(f"  策略: {scraper_type}")
 
     try:
+        # 为通用列表爬虫生成分页 URL（自定义爬虫内部自行分页）
+        paged_urls = generate_paginated_urls(urls) if urls else []
+
         if scraper_type == 'mee':
             items = scrape_mee(source)
         elif scraper_type == 'shanghai':
@@ -1023,15 +1068,15 @@ def scrape_source(source):
         elif scraper_type == 'taiwan':
             items = scrape_taiwan(source)
         elif scraper_type == 'table':
-            items = scrape_table_list(source, urls, encoding)
+            items = scrape_table_list(source, paged_urls, encoding)
         elif scraper_type == 'simple':
-            items = scrape_simple_list(source, urls, encoding)
+            items = scrape_simple_list(source, paged_urls, encoding)
         elif scraper_type == 'dl':
-            items = scrape_dl_list(source, urls, encoding)
+            items = scrape_dl_list(source, paged_urls, encoding)
         elif scraper_type == 'mobile':
-            items = scrape_mobile_list(source, urls, encoding)
+            items = scrape_mobile_list(source, paged_urls, encoding)
         else:
-            items = scrape_generic(source, urls, encoding)
+            items = scrape_generic(source, paged_urls, encoding)
 
         # 过滤无效项 & 去重
         seen = set()
@@ -1049,13 +1094,15 @@ def scrape_source(source):
             seen.add(item['title'])
             valid.append(item)
 
+        # 近2月日期过滤
+        valid = filter_by_date(valid)
         items = valid[:MAX_NEWS]
 
         # ─── Fallback 机制：抓取不足时使用预存数据 ───
         if len(items) < 3 and sid in FALLBACK_DATA:
             fallback_items = FALLBACK_DATA[sid]
             print(f"  ⚠️  在线抓取仅 {len(items)} 条，使用 fallback 数据 ({len(fallback_items)} 条)")
-            items = fallback_items[:MAX_NEWS]
+            items = filter_by_date(fallback_items)[:MAX_NEWS]
 
         print(f"  ✅ 成功获取 {len(items)} 条新闻" + (" (fallback)" if sid in FALLBACK_DATA and len(valid) < 3 else ""))
         return items
@@ -1063,11 +1110,10 @@ def scrape_source(source):
     except Exception as e:
         print(f"  ❌ 抓取失败: {e}")
         traceback.print_exc()
-        # 异常时也尝试 fallback
         if sid in FALLBACK_DATA:
             fallback_items = FALLBACK_DATA[sid]
             print(f"  ⚠️  使用 fallback 数据 ({len(fallback_items)} 条)")
-            return fallback_items[:MAX_NEWS]
+            return filter_by_date(fallback_items)[:MAX_NEWS]
         return []
 
 
