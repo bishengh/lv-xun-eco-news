@@ -6,14 +6,40 @@
 
 ![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-Cloud-3FCF8E?logo=supabase&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15/16-4169E1?logo=postgresql&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![Deno](https://img.shields.io/badge/Deno-Edge_Functions-000000?logo=deno&logoColor=white)
 
 ---
 
 ## 系统架构
+
+支持 **Supabase 云端**（生产）和 **Docker Compose 本地**（开发）双模式部署。
+
+### 生产环境 — Supabase Cloud
+
+```
+                    ┌──────────────────────────────────────────────┐
+                    │         Supabase Cloud (bisheng Org)          │
+                    │                                              │
+ 用户浏览器 ──────→ │  ┌──────────────────────────────────────┐    │
+  (React SPA)       │  │     Edge Function: api                │    │
+                    │  │  /health  /news/*  /sources/*         │    │
+                    │  │  /reports/*                            │    │
+                    │  └────────────────┬───────────────────────┘    │
+                    │                   │ supabase.rpc() / .from()  │
+                    │          ┌────────▼─────────────────────┐     │
+                    │          │     PostgreSQL 15             │     │
+                    │          │  4 表 · 8 索引 · 8 RPC 函数  │     │
+                    │          │  9 RLS 策略 · 1214+ 新闻     │     │
+                    │          └──────────────────────────────┘     │
+                    └──────────────────────────────────────────────┘
+```
+
+### 开发环境 — Docker Compose
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -34,13 +60,14 @@
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**三层架构：**
+**技术栈：**
 
 | 层级 | 技术栈 | 说明 |
 |------|--------|------|
-| **表现层** | React 18 + TypeScript + Tailwind CSS | SPA 前端，Nginx 生产部署 |
-| **业务层** | FastAPI + SQLAlchemy AsyncIO | RESTful API，异步 ORM |
-| **数据层** | PostgreSQL 16 | 结构化存储，GIN 全文索引 |
+| **表现层** | React 18 + TypeScript + Tailwind CSS | SPA 前端，支持 Vercel / Nginx 部署 |
+| **业务层（云端）** | Supabase Edge Function (Deno) | 12 个 API 端点，Serverless |
+| **业务层（本地）** | FastAPI + SQLAlchemy AsyncIO | RESTful API，异步 ORM |
+| **数据层** | PostgreSQL 15/16 + RPC 函数 | 结构化存储，GIN 全文索引，RLS 安全 |
 
 ---
 
@@ -55,6 +82,7 @@
 - **抓取报告** — 每次抓取自动生成详细报告（成功率、各来源明细、新增条数、耗时统计）
 - **响应式设计** — 完美适配桌面端、平板、手机
 - **容器化部署** — Docker Compose 一键启动全部服务
+- **云端部署** — Supabase Cloud（Edge Function API + PostgreSQL + RLS 安全策略）
 
 ---
 
@@ -71,6 +99,9 @@
 ---
 
 ## API 接口
+
+**云端入口**：`https://eeabqxxrqqvvlchvgeay.supabase.co/functions/v1/api`
+**本地入口**：`http://localhost:8000/api`
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -248,7 +279,8 @@ lv-xun-eco-news/
 │
 ├── docs/                              # 项目文档
 │   ├── 需求规格说明书.md               # SRS（GB/T 9385-2008 标准）
-│   └── 项目设计报告.md                 # 系统设计文档（SDD）
+│   ├── 项目设计报告.md                 # 系统设计文档（SDD）
+│   └── 部署文档.md                    # Supabase 云端 + Docker 本地部署指南
 │
 └── README.md
 ```
@@ -263,7 +295,24 @@ lv-xun-eco-news/
 - Docker Compose >= 2.0
 - Node.js >= 18（仅开发模式需要）
 
-### 方式一：Docker Compose 一键部署（推荐）
+### 方式一：Supabase 云端（已部署，可直接访问）
+
+项目已部署到 Supabase Cloud（bisheng Org），API 无需本地启动：
+
+```bash
+# 健康检查
+curl https://eeabqxxrqqvvlchvgeay.supabase.co/functions/v1/api/health
+
+# 获取新闻统计
+curl https://eeabqxxrqqvvlchvgeay.supabase.co/functions/v1/api/news/stats
+
+# 本地启动前端，连接 Supabase 后端
+cd web
+npm install
+VITE_SUPABASE_URL=https://eeabqxxrqqvvlchvgeay.supabase.co npm run dev
+```
+
+### 方式二：Docker Compose 一键部署（本地完整环境）
 
 ```bash
 # 克隆项目
@@ -283,7 +332,7 @@ docker ps
 - API 文档：http://localhost:8000/docs
 - PostgreSQL：localhost:5432
 
-### 方式二：开发模式
+### 方式三：开发模式
 
 ```bash
 # 1. 启动数据库和 API
@@ -330,7 +379,8 @@ docker compose run --rm scraper-service python scraper.py
 
 ### API
 
-- 异步架构：FastAPI + SQLAlchemy AsyncIO + asyncpg
+- **云端（Supabase）**：Edge Function (Deno) + 8 个 RPC 函数 + RLS 安全策略
+- **本地（Docker）**：FastAPI + SQLAlchemy AsyncIO + asyncpg
 - Repository 模式分离数据访问逻辑
 - 支持多维组合筛选（地区 + 来源 + 分类 + 关键词 + 日期范围）
 - GIN 索引支持新闻标题全文搜索
@@ -341,6 +391,7 @@ docker compose run --rm scraper-service python scraper.py
 - 组件库：shadcn/ui 风格（button、card、badge）
 - 路由：react-router-dom v7
 - API 调用层统一封装，类型安全
+- 双模式后端适配（Supabase / FastAPI 自动切换）
 
 ---
 
@@ -348,6 +399,7 @@ docker compose run --rm scraper-service python scraper.py
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| v0.4 | 2026-03-26 | Supabase 云端部署 — Edge Function API + RLS + RPC 函数 + 部署文档 |
 | v0.3 | 2026-03-26 | 每日定时抓取 + 抓取报告系统 + 历史数据导入 + 项目文档（SRS/SDD） |
 | v0.2 | 2026-03-26 | 微服务架构重构 — PostgreSQL + FastAPI + Docker Compose |
 | v0.1 | 2026-03-25 | 初始版本 — React 前端 + Python 爬虫，35 源全量抓取 |
