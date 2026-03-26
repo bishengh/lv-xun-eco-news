@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Search, Filter, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Navbar } from '@/components/layout/Navbar'
@@ -8,14 +8,20 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { fetchNews, getCategories } from '@/data/news-service'
 import { getRegions } from '@/data/sources'
-import type { NewsFilter } from '@/types/news'
+import type { NewsFilter, PaginatedResult, NewsItem } from '@/types/news'
 import { cn } from '@/lib/utils'
 
 const PAGE_SIZE = 9
 
+const emptyResult: PaginatedResult<NewsItem> = {
+  items: [], total: 0, page: 1, pageSize: PAGE_SIZE, totalPages: 0,
+}
+
 export function NewsListPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [result, setResult] = useState<PaginatedResult<NewsItem>>(emptyResult)
+  const [loading, setLoading] = useState(true)
 
   // Filter state from URL params
   const regionParam = searchParams.get('region') || ''
@@ -28,16 +34,21 @@ export function NewsListPage() {
   const regions = getRegions()
   const categories = getCategories()
 
-  // Build filter
-  const filter: NewsFilter = {
-    page: pageParam,
-    pageSize: PAGE_SIZE,
-    region: regionParam || undefined,
-    category: categoryParam || undefined,
-    keyword: keywordParam || undefined,
-  }
-
-  const result = fetchNews(filter)
+  // Load data whenever URL params change
+  useEffect(() => {
+    setLoading(true)
+    const filter: NewsFilter = {
+      page: pageParam,
+      pageSize: PAGE_SIZE,
+      region: regionParam || undefined,
+      category: categoryParam || undefined,
+      keyword: keywordParam || undefined,
+    }
+    fetchNews(filter).then(r => {
+      setResult(r)
+      setLoading(false)
+    })
+  }, [regionParam, categoryParam, keywordParam, pageParam])
 
   const updateParam = useCallback((key: string, value: string) => {
     const params = new URLSearchParams(searchParams)
@@ -178,7 +189,12 @@ export function NewsListPage() {
               </div>
 
               {/* News grid */}
-              {result.items.length === 0 ? (
+              {loading ? (
+                <div className="text-center py-20">
+                  <div className="inline-block w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+                  <p className="text-muted-foreground mt-4">加载中...</p>
+                </div>
+              ) : result.items.length === 0 ? (
                 <div className="text-center py-20">
                   <p className="text-muted-foreground text-lg">暂无符合条件的新闻</p>
                   <Button variant="outline" className="mt-4" onClick={clearAllFilters}>

@@ -1,11 +1,18 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { NewsCard } from '@/components/news/NewsCard'
 import { fetchLatestNews, fetchHotNews } from '@/data/news-service'
+import type { NewsItem } from '@/types/news'
 
 export function LatestNewsSection() {
-  const latest = fetchLatestNews(7)
+  const [latest, setLatest] = useState<NewsItem[]>([])
+
+  useEffect(() => {
+    fetchLatestNews(7).then(setLatest)
+  }, [])
+
   const featured = latest[0]
   const rest = latest.slice(1, 7)
 
@@ -47,7 +54,11 @@ export function LatestNewsSection() {
 }
 
 export function HotNewsSection() {
-  const hotNews = fetchHotNews(4)
+  const [hotNews, setHotNews] = useState<NewsItem[]>([])
+
+  useEffect(() => {
+    fetchHotNews(4).then(setHotNews)
+  }, [])
 
   return (
     <section className="py-16 lg:py-24 bg-subtle-gradient">

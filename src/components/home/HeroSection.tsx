@@ -1,10 +1,27 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, BarChart3, Globe, Newspaper, TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { fetchStats } from '@/data/news-service'
 
+interface Stats {
+  provinces: number
+  totalNews: number
+  totalSources: number
+  todayNews: number
+}
+
 export function HeroSection() {
-  const stats = fetchStats()
+  const [stats, setStats] = useState<Stats>({ provinces: 0, totalNews: 0, totalSources: 0, todayNews: 0 })
+
+  useEffect(() => {
+    fetchStats().then(s => setStats({
+      provinces: s.provinces,
+      totalNews: s.totalNews,
+      totalSources: s.totalSources,
+      todayNews: s.todayNews || 0,
+    }))
+  }, [])
 
   const statItems = [
     { icon: Globe, label: '覆盖省市', value: stats.provinces, suffix: '个' },

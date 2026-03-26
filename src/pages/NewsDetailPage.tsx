@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Calendar, Eye, ExternalLink, Layers, Share2, Tag } from 'lucide-react'
 import { Navbar } from '@/components/layout/Navbar'
@@ -6,11 +7,42 @@ import { NewsCard } from '@/components/news/NewsCard'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { fetchNewsById, fetchRelatedNews } from '@/data/news-service'
+import type { NewsItem } from '@/types/news'
 
 export function NewsDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const news = id ? fetchNewsById(id) : undefined
-  const related = id ? fetchRelatedNews(id, 5) : []
+  const [news, setNews] = useState<NewsItem | null>(null)
+  const [related, setRelated] = useState<NewsItem[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!id) { setLoading(false); return }
+    setLoading(true)
+    Promise.all([
+      fetchNewsById(id),
+      fetchRelatedNews(id, 5),
+    ]).then(([n, r]) => {
+      setNews(n || null)
+      setRelated(r)
+      setLoading(false)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    })
+  }, [id])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-1 pt-24 flex items-center justify-center">
+          <div className="text-center">
+            <div className="inline-block w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+            <p className="text-muted-foreground mt-4">加载中...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
 
   if (!news) {
     return (
