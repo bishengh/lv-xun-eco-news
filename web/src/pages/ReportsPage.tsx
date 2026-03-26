@@ -9,7 +9,6 @@ import {
   TrendingUp, AlertTriangle, BarChart3
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Link } from 'react-router-dom'
 
 function formatDuration(seconds: number): string {
   if (seconds < 60) return `${seconds.toFixed(1)}s`
@@ -204,7 +203,7 @@ export function ReportsPage() {
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
               <span className="ml-2 text-muted-foreground">加载中...</span>
             </div>
-          ) : !data || data.items.length === 0 ? (
+          ) : !data || !data.items || data.items.length === 0 ? (
             <div className="text-center py-20">
               <FileText className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
               <p className="text-muted-foreground">暂无抓取报告</p>
@@ -258,7 +257,7 @@ export function ReportsPage() {
               </div>
 
               {/* 分页 */}
-              {data.total_pages > 1 && (
+              {(data.total_pages || 0) > 1 && (
                 <div className="flex items-center justify-center gap-2 mt-8">
                   <Button
                     variant="outline" size="sm"
@@ -268,11 +267,11 @@ export function ReportsPage() {
                     <ChevronLeft className="w-4 h-4" />
                   </Button>
                   <span className="text-sm text-muted-foreground px-3">
-                    {page} / {data.total_pages}
+                    {page} / {data.total_pages || 1}
                   </span>
                   <Button
                     variant="outline" size="sm"
-                    disabled={page >= data.total_pages}
+                    disabled={page >= (data.total_pages || 1)}
                     onClick={() => setPage(p => p + 1)}
                   >
                     <ChevronRight className="w-4 h-4" />

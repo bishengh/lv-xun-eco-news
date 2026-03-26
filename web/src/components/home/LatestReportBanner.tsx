@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { fetchLatestReport, type ScrapeReport } from '@/data/news-service'
 import { cn } from '@/lib/utils'
 import { FileText, CheckCircle, XCircle, Database, Clock, ArrowRight, TrendingUp } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 
 function formatDuration(seconds: number): string {
   if (seconds < 60) return `${seconds.toFixed(0)}秒`

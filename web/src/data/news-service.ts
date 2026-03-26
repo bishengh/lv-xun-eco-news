@@ -1,7 +1,11 @@
 import type { NewsItem, NewsFilter, PaginatedResult, NewsSource } from '@/types/news'
 
 // ─── API 基础配置 ───
-const API_BASE = import.meta.env.VITE_API_URL || ''
+// Supabase Edge Functions URL（生产环境）或本地开发
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
+const API_BASE = SUPABASE_URL
+  ? `${SUPABASE_URL}/functions/v1/api`
+  : (import.meta.env.VITE_API_URL || '')
 
 // 配图池
 const categoryImages: Record<string, string> = {
@@ -35,7 +39,14 @@ interface ApiNewsItem {
   url: string
   date: string | null
   summary: string | null
-  source: ApiSource
+  // Supabase Edge Function 返回扁平化字段
+  source_id: string
+  source_name?: string
+  source_short_name?: string
+  region?: string
+  source_url?: string
+  // FastAPI 返回嵌套对象（本地开发）
+  source?: ApiSource
   category: string
   tags: string[]
   merged: boolean
@@ -43,12 +54,16 @@ interface ApiNewsItem {
   created_at: string | null
 }
 
+// Supabase Edge Function 的列表响应（字段名与 FastAPI 不同）
 interface ApiListResponse {
-  items: ApiNewsItem[]
+  data?: ApiNewsItem[]
+  items?: ApiNewsItem[]
   total: number
   page: number
-  page_size: number
-  total_pages: number
+  pageSize?: number
+  page_size?: number
+  totalPages?: number
+  total_pages?: number
 }
 
 interface ApiStatsResponse {
@@ -74,6 +89,17 @@ function mapSource(s: ApiSource): NewsSource {
 }
 
 function mapNewsItem(item: ApiNewsItem, index: number): NewsItem {
+  // 兼容 Supabase 扁平化格式和 FastAPI 嵌套格式
+  const source: NewsSource = item.source
+    ? mapSource(item.source)
+    : {
+        id: item.source_id || '',
+        name: item.source_name || '',
+        shortName: item.source_short_name || '',
+        region: item.region || '',
+        url: item.source_url || '',
+        category: 'province' as NewsSource['category'],
+      }
   return {
     id: item.id,
     title: item.title,
@@ -81,7 +107,7 @@ function mapNewsItem(item: ApiNewsItem, index: number): NewsItem {
     content: item.summary
       ? `<p>${item.summary}</p><p>更多详情请查看原文链接。</p>`
       : `<p>${item.title}</p><p>更多详情请查看原文链接。</p>`,
-    source: mapSource(item.source),
+    source,
     publishDate: item.date || '2026-03-26',
     category: item.category || '环保资讯',
     imageUrl: assignImage(item, index),
@@ -94,9 +120,14 @@ function mapNewsItem(item: ApiNewsItem, index: number): NewsItem {
 
 // ─── 通用请求函数 ───
 
+const isSupabase = !!SUPABASE_URL
+
 async function apiFetch<T>(path: string, params?: Record<string, string | number | undefined>): Promise<T> {
   const base = API_BASE || window.location.origin
-  const url = new URL(path, base)
+  // Supabase 模式: API_BASE 已包含 /functions/v1/api，去掉 path 中的 /api 前缀
+  // 本地模式: 保持 /api/xxx 路径
+  const fullPath = isSupabase ? path.replace(/^\/api/, '') : path
+  const url = new URL(fullPath, base)
   if (params) {
     Object.entries(params).forEach(([key, val]) => {
       if (val !== undefined && val !== null && val !== '') {
@@ -124,12 +155,14 @@ export async function fetchNews(filter: NewsFilter): Promise<PaginatedResult<New
     page: filter.page,
     pageSize: filter.pageSize,
   })
+  // 兼容 Supabase (data/pageSize/totalPages) 和 FastAPI (items/page_size/total_pages)
+  const newsItems = data.data || data.items || []
   return {
-    items: data.items.map((item, i) => mapNewsItem(item, i)),
+    items: newsItems.map((item, i) => mapNewsItem(item, i)),
     total: data.total,
     page: data.page,
-    pageSize: data.page_size,
-    totalPages: data.total_pages,
+    pageSize: data.pageSize || data.page_size || 20,
+    totalPages: data.totalPages || data.total_pages || 1,
   }
 }
 
@@ -143,17 +176,17 @@ export async function fetchNewsById(id: string): Promise<NewsItem | undefined> {
 }
 
 export async function fetchHotNews(count = 6): Promise<NewsItem[]> {
-  const items = await apiFetch<ApiNewsItem[]>('/api/news/hot', { count })
+  const items = await apiFetch<ApiNewsItem[]>('/api/news/hot', { limit: count })
   return items.map((item, i) => mapNewsItem(item, i))
 }
 
 export async function fetchLatestNews(count = 8): Promise<NewsItem[]> {
-  const items = await apiFetch<ApiNewsItem[]>('/api/news/latest', { count })
+  const items = await apiFetch<ApiNewsItem[]>('/api/news/latest', { limit: count })
   return items.map((item, i) => mapNewsItem(item, i))
 }
 
 export async function fetchRelatedNews(newsId: string, count = 5): Promise<NewsItem[]> {
-  const items = await apiFetch<ApiNewsItem[]>(`/api/news/${newsId}/related`, { count })
+  const items = await apiFetch<ApiNewsItem[]>(`/api/news/${newsId}/related`, { limit: count })
   return items.map((item, i) => mapNewsItem(item, i))
 }
 
@@ -202,15 +235,25 @@ export interface ScrapeReport {
 }
 
 export interface ReportListResponse {
-  items: ScrapeReport[]
+  items?: ScrapeReport[]
+  data?: ScrapeReport[]
   total: number
   page: number
-  page_size: number
-  total_pages: number
+  page_size?: number
+  pageSize?: number
+  total_pages?: number
+  totalPages?: number
 }
 
 export async function fetchReports(page = 1, pageSize = 20): Promise<ReportListResponse> {
-  return apiFetch<ReportListResponse>('/api/reports', { page, page_size: pageSize })
+  const raw = await apiFetch<ReportListResponse>('/api/reports', { page, pageSize })
+  return {
+    items: raw.data || raw.items || [],
+    total: raw.total,
+    page: raw.page,
+    page_size: raw.pageSize || raw.page_size || pageSize,
+    total_pages: raw.totalPages || raw.total_pages || 1,
+  }
 }
 
 export async function fetchReportById(id: number): Promise<ScrapeReport> {
