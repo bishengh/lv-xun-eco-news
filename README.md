@@ -63,22 +63,65 @@ Python 3 + requests + BeautifulSoup4 + lxml
 
 ## 数据来源（35 个）
 
-### 国家级
+### 国家级（1 个）
+
 | 来源 | 网址 |
 |------|------|
 | 生态环境部 | https://www.mee.gov.cn |
 
 ### 直辖市（4 个）
-北京、上海、天津、重庆
+
+| 来源 | 网址 |
+|------|------|
+| 北京市生态环境局 | https://sthjj.beijing.gov.cn |
+| 上海市生态环境局 | https://sthj.sh.gov.cn |
+| 天津市生态环境局 | https://sthj.tj.gov.cn |
+| 重庆市生态环境局 | https://sthjj.cq.gov.cn |
 
 ### 省份（23 个）
-河北、山西、辽宁、吉林、黑龙江、江苏、浙江、安徽、福建、江西、山东、河南、湖北、湖南、广东、海南、四川、贵州、云南、陕西、甘肃、青海、台湾
+
+| 来源 | 网址 |
+|------|------|
+| 河北省生态环境厅 | https://hbepb.hebei.gov.cn |
+| 山西省生态环境厅 | https://sthjt.shanxi.gov.cn |
+| 辽宁省生态环境厅 | https://sthj.ln.gov.cn |
+| 吉林省生态环境厅 | https://sthjt.jl.gov.cn |
+| 黑龙江省生态环境厅 | https://sthj.hlj.gov.cn |
+| 江苏省生态环境厅 | https://sthjt.jiangsu.gov.cn |
+| 浙江省生态环境厅 | https://sthjt.zj.gov.cn |
+| 安徽省生态环境厅 | https://sthjt.ah.gov.cn |
+| 福建省生态环境厅 | https://sthjt.fujian.gov.cn |
+| 江西省生态环境厅 | https://sthjt.jiangxi.gov.cn |
+| 山东省生态环境厅 | https://sthj.shandong.gov.cn |
+| 河南省生态环境厅 | https://sthjt.henan.gov.cn |
+| 湖北省生态环境厅 | https://sthjt.hubei.gov.cn |
+| 湖南省生态环境厅 | https://sthjt.hunan.gov.cn |
+| 广东省生态环境厅 | https://gdee.gd.gov.cn |
+| 海南省生态环境厅 | https://hnsthj.hainan.gov.cn |
+| 四川省生态环境厅 | https://sthjt.sc.gov.cn |
+| 贵州省生态环境厅 | https://sthj.guizhou.gov.cn |
+| 云南省生态环境厅 | https://sthjt.yn.gov.cn |
+| 陕西省生态环境厅 | https://sthjt.shaanxi.gov.cn |
+| 甘肃省生态环境厅 | https://sthj.gansu.gov.cn |
+| 青海省生态环境厅 | https://sthjt.qinghai.gov.cn |
+| 台湾地区环境部 | https://www.moenv.gov.tw |
 
 ### 自治区（5 个）
-内蒙古、广西、西藏、宁夏、新疆
+
+| 来源 | 网址 |
+|------|------|
+| 内蒙古自治区生态环境厅 | https://sthjt.nmg.gov.cn |
+| 广西壮族自治区生态环境厅 | https://sthjt.gxzf.gov.cn |
+| 西藏自治区生态环境厅 | https://ee.xizang.gov.cn |
+| 宁夏回族自治区生态环境厅 | https://sthjt.nx.gov.cn |
+| 新疆维吾尔自治区生态环境厅 | https://sthjt.xinjiang.gov.cn |
 
 ### 特别行政区（2 个）
-香港、澳门
+
+| 来源 | 网址 |
+|------|------|
+| 香港特别行政区环境及生态局 | https://www.eeb.gov.hk |
+| 澳门特别行政区环境保护局 | https://www.dspa.gov.mo |
 
 ---
 
