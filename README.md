@@ -2,6 +2,8 @@
 
 自动抓取生态环境部及全国 34 个省、自治区、直辖市、特别行政区环保官网新闻，智能去重合并，一站纵览全国生态环境最新动态。
 
+> 📊 **当前数据**：35 个数据源 · 1214+ 条新闻 · 9 大分类 · 每日 08:00 自动更新
+
 ![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
@@ -93,7 +95,7 @@
 -- 数据来源（35 条）
 sources (id, name, short_name, region, url, category)
 
--- 新闻（1200+ 条）
+-- 新闻（1214+ 条）
 news (id, title, url, date, summary, source_id, category, tags[], merged, view_count)
 
 -- 抓取日志（每来源每次）
@@ -244,6 +246,10 @@ lv-xun-eco-news/
 │   ├── package.json
 │   └── Dockerfile                     # 多阶段构建（node -> nginx）
 │
+├── docs/                              # 项目文档
+│   ├── 需求规格说明书.md               # SRS（GB/T 9385-2008 标准）
+│   └── 项目设计报告.md                 # 系统设计文档（SDD）
+│
 └── README.md
 ```
 
@@ -342,7 +348,8 @@ docker compose run --rm scraper-service python scraper.py
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
-| v0.2 | 2026-03-26 | 微服务架构重构 — PostgreSQL + FastAPI + Docker Compose + 定时抓取 + 抓取报告 |
+| v0.3 | 2026-03-26 | 每日定时抓取 + 抓取报告系统 + 历史数据导入 + 项目文档（SRS/SDD） |
+| v0.2 | 2026-03-26 | 微服务架构重构 — PostgreSQL + FastAPI + Docker Compose |
 | v0.1 | 2026-03-25 | 初始版本 — React 前端 + Python 爬虫，35 源全量抓取 |
 
 ---
