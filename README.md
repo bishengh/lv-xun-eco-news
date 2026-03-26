@@ -12,31 +12,40 @@
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![Deno](https://img.shields.io/badge/Deno-Edge_Functions-000000?logo=deno&logoColor=white)
+![Vercel](https://img.shields.io/badge/Vercel-Production-000000?logo=vercel&logoColor=white)
 
 ---
 
 ## 系统架构
 
-支持 **Supabase 云端**（生产）和 **Docker Compose 本地**（开发）双模式部署。
+支持 **Supabase 云端 + Vercel**（生产）和 **Docker Compose 本地**（开发）双模式部署。
 
-### 生产环境 — Supabase Cloud
+> 🌐 **在线访问**：https://web-ten-nu-48.vercel.app
+
+### 生产环境 — Supabase Cloud + Vercel
 
 ```
-                    ┌──────────────────────────────────────────────┐
-                    │         Supabase Cloud (bisheng Org)          │
-                    │                                              │
- 用户浏览器 ──────→ │  ┌──────────────────────────────────────┐    │
-  (React SPA)       │  │     Edge Function: api                │    │
-                    │  │  /health  /news/*  /sources/*         │    │
-                    │  │  /reports/*                            │    │
-                    │  └────────────────┬───────────────────────┘    │
-                    │                   │ supabase.rpc() / .from()  │
-                    │          ┌────────▼─────────────────────┐     │
-                    │          │     PostgreSQL 15             │     │
-                    │          │  4 表 · 8 索引 · 8 RPC 函数  │     │
-                    │          │  9 RLS 策略 · 1214+ 新闻     │     │
-                    │          └──────────────────────────────┘     │
-                    └──────────────────────────────────────────────┘
+                              ┌───────────────────────┐
+                              │       Vercel CDN       │
+ 用户浏览器 ────────────────→ │  React SPA 静态托管     │
+                              │  web-ten-nu-48.vercel  │
+                              └───────────┬───────────┘
+                                          │ HTTPS
+                    ┌─────────────────────▼────────────────────┐
+                    │         Supabase Cloud (bisheng Org)      │
+                    │                                          │
+                    │  ┌──────────────────────────────────┐    │
+                    │  │     Edge Function: api            │    │
+                    │  │  /health  /news/*  /sources/*     │    │
+                    │  │  /reports/*                        │    │
+                    │  └────────────────┬─────────────────┘    │
+                    │                   │ supabase.rpc()        │
+                    │          ┌────────▼─────────────────┐    │
+                    │          │     PostgreSQL 15         │    │
+                    │          │  4 表 · 8 索引 · 8 RPC   │    │
+                    │          │  9 RLS · 1214+ 新闻      │    │
+                    │          └──────────────────────────┘    │
+                    └──────────────────────────────────────────┘
 ```
 
 ### 开发环境 — Docker Compose
@@ -64,7 +73,7 @@
 
 | 层级 | 技术栈 | 说明 |
 |------|--------|------|
-| **表现层** | React 18 + TypeScript + Tailwind CSS | SPA 前端，支持 Vercel / Nginx 部署 |
+| **表现层** | React 18 + TypeScript + Tailwind CSS | SPA 前端，已部署 Vercel 生产环境 |
 | **业务层（云端）** | Supabase Edge Function (Deno) | 12 个 API 端点，Serverless |
 | **业务层（本地）** | FastAPI + SQLAlchemy AsyncIO | RESTful API，异步 ORM |
 | **数据层** | PostgreSQL 15/16 + RPC 函数 | 结构化存储，GIN 全文索引，RLS 安全 |
@@ -82,7 +91,7 @@
 - **抓取报告** — 每次抓取自动生成详细报告（成功率、各来源明细、新增条数、耗时统计）
 - **响应式设计** — 完美适配桌面端、平板、手机
 - **容器化部署** — Docker Compose 一键启动全部服务
-- **云端部署** — Supabase Cloud（Edge Function API + PostgreSQL + RLS 安全策略）
+- **云端部署** — Supabase Cloud（Edge Function API + PostgreSQL + RLS）+ Vercel 前端托管，完全独立运行
 
 ---
 
@@ -102,6 +111,7 @@
 
 **云端入口**：`https://eeabqxxrqqvvlchvgeay.supabase.co/functions/v1/api`
 **本地入口**：`http://localhost:8000/api`
+**前端地址**：`https://web-ten-nu-48.vercel.app`
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -295,21 +305,19 @@ lv-xun-eco-news/
 - Docker Compose >= 2.0
 - Node.js >= 18（仅开发模式需要）
 
-### 方式一：Supabase 云端（已部署，可直接访问）
+### 方式一：在线访问（已部署，无需安装）
 
-项目已部署到 Supabase Cloud（bisheng Org），API 无需本地启动：
+前端已部署 Vercel，后端已部署 Supabase Cloud，直接访问：
+
+- **🌐 在线地址**：https://web-ten-nu-48.vercel.app
+- **📡 API 入口**：https://eeabqxxrqqvvlchvgeay.supabase.co/functions/v1/api
 
 ```bash
-# 健康检查
+# API 健康检查
 curl https://eeabqxxrqqvvlchvgeay.supabase.co/functions/v1/api/health
 
 # 获取新闻统计
 curl https://eeabqxxrqqvvlchvgeay.supabase.co/functions/v1/api/news/stats
-
-# 本地启动前端，连接 Supabase 后端
-cd web
-npm install
-VITE_SUPABASE_URL=https://eeabqxxrqqvvlchvgeay.supabase.co npm run dev
 ```
 
 ### 方式二：Docker Compose 一键部署（本地完整环境）
@@ -399,6 +407,7 @@ docker compose run --rm scraper-service python scraper.py
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| v0.5 | 2026-03-26 | Vercel 生产部署 — 前端上线 + 全链路云端独立运行 + 全量文档更新 |
 | v0.4 | 2026-03-26 | Supabase 云端部署 — Edge Function API + RLS + RPC 函数 + 部署文档 |
 | v0.3 | 2026-03-26 | 每日定时抓取 + 抓取报告系统 + 历史数据导入 + 项目文档（SRS/SDD） |
 | v0.2 | 2026-03-26 | 微服务架构重构 — PostgreSQL + FastAPI + Docker Compose |
