@@ -4,9 +4,41 @@
 
 ![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white)
-![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-3.4-06B6D4?logo=tailwindcss&logoColor=white)
-![Python](https://img.shields.io/badge/Python-3.x-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+
+---
+
+## 系统架构
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Docker Compose                         │
+│                                                             │
+│  ┌─────────────┐  ┌──────────────┐  ┌───────────────────┐  │
+│  │  lvxun-web   │  │  lvxun-api   │  │  lvxun-scraper    │  │
+│  │  React/Nginx │→ │  FastAPI     │  │  APScheduler      │  │
+│  │  :3000       │  │  :8000       │  │  每天 08:00 抓取   │  │
+│  └─────────────┘  └──────┬───────┘  └────────┬──────────┘  │
+│                          │                    │             │
+│                    ┌─────▼────────────────────▼──────┐      │
+│                    │        lvxun-db                  │      │
+│                    │     PostgreSQL 16                │      │
+│                    │  sources | news | scrape_reports │      │
+│                    │        :5432                     │      │
+│                    └─────────────────────────────────┘      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**三层架构：**
+
+| 层级 | 技术栈 | 说明 |
+|------|--------|------|
+| **表现层** | React 18 + TypeScript + Tailwind CSS | SPA 前端，Nginx 生产部署 |
+| **业务层** | FastAPI + SQLAlchemy AsyncIO | RESTful API，异步 ORM |
+| **数据层** | PostgreSQL 16 | 结构化存储，GIN 全文索引 |
 
 ---
 
@@ -14,11 +46,13 @@
 
 - **全国覆盖** — 聚合生态环境部 + 34 省市自治区及特别行政区环保官网，共 35 个数据来源，100% 抓取成功
 - **智能去重** — 跨来源相同新闻自动合并，标注"多源报道"
-- **自动分类** — 智能识别新闻类别：政策法规、污染防治、生态保护、环境监测、绿色发展等
+- **自动分类** — 智能识别新闻类别：政策法规、污染防治、生态保护、环境监测、绿色发展等 9 大类
 - **自动标签** — 基于关键词提取新闻标签，方便检索
-- **多维筛选** — 支持按地区、分类、关键词搜索与筛选
+- **多维筛选** — 支持按地区、来源、分类、关键词、日期范围筛选 + 分页
+- **定时抓取** — APScheduler 每天早上 8:00 自动执行全量抓取
+- **抓取报告** — 每次抓取自动生成详细报告（成功率、各来源明细、新增条数、耗时统计）
 - **响应式设计** — 完美适配桌面端、平板、手机
-- **现代 UI** — 绿色主题设计系统，毛玻璃效果、流畅动画
+- **容器化部署** — Docker Compose 一键启动全部服务
 
 ---
 
@@ -26,38 +60,49 @@
 
 | 页面 | 路由 | 说明 |
 |------|------|------|
-| 首页 | `/` | Hero 横幅、实时统计、最新资讯、热门关注、省份浏览 |
+| 首页 | `/` | Hero 横幅、实时统计、最新抓取报告摘要、最新资讯、热门关注、省份浏览 |
 | 新闻列表 | `/news` | 全部新闻分页展示，侧栏分类/地区筛选，搜索功能 |
 | 新闻详情 | `/news/:id` | 新闻正文、来源信息、多源标记、标签、相关推荐 |
+| 抓取报告 | `/reports` | 报告列表、详情查看（成功/失败来源分组、核心指标面板） |
 | 关于 | `/about` | 平台介绍、功能特性、数据来源列表 |
 
 ---
 
-## 技术架构
+## API 接口
 
-### 前端
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/health` | 健康检查 |
+| GET | `/api/news` | 新闻列表（支持 region/source/category/keyword/date_start/date_end/page/pageSize 参数） |
+| GET | `/api/news/latest` | 最新新闻 |
+| GET | `/api/news/hot` | 热门新闻（按浏览量排序） |
+| GET | `/api/news/stats` | 数据统计（来源数、新闻数、分类列表） |
+| GET | `/api/news/{id}` | 新闻详情（自动增加浏览量） |
+| GET | `/api/news/{id}/related` | 相关推荐 |
+| GET | `/api/sources` | 数据来源列表 |
+| GET | `/api/sources/stats` | 来源统计（含各来源新闻数） |
+| GET | `/api/reports` | 抓取报告列表（分页） |
+| GET | `/api/reports/latest` | 最新抓取报告 |
+| GET | `/api/reports/{id}` | 报告详情（含各来源抓取明细） |
 
+---
+
+## 数据库设计
+
+```sql
+-- 数据来源（35 条）
+sources (id, name, short_name, region, url, category)
+
+-- 新闻（1200+ 条）
+news (id, title, url, date, summary, source_id, category, tags[], merged, view_count)
+
+-- 抓取日志（每来源每次）
+scrape_logs (id, source_id, started_at, ended_at, items_found, items_new, status)
+
+-- 抓取报告（每次完整抓取）
+scrape_reports (id, report_date, started_at, ended_at, total_sources, success_sources,
+                failed_sources, total_items, new_items, duration_seconds, source_details JSONB, status)
 ```
-React 18 + TypeScript + Vite 6 + Tailwind CSS 3
-```
-
-- **路由**：react-router-dom v7
-- **组件库**：shadcn/ui 风格（button、card、badge）
-- **图标**：lucide-react
-- **样式工具**：class-variance-authority + clsx + tailwind-merge
-- **设计系统**：CSS 自定义属性（HSL 颜色 token、渐变、阴影、动画）
-
-### 爬虫
-
-```
-Python 3 + requests + BeautifulSoup4 + lxml
-```
-
-- 支持 7 种页面解析策略：`dl/dt/dd` 列表、`mobile_list` 列表、`ul/li` 简单列表、`table` 表格、专用解析器（上海/江苏/江西/西藏/香港/澳门/台湾）
-- 自动识别页面编码，兼容 GB2312/UTF-8
-- WAF 防护应对：Session cookie 建立、fallback 预存数据机制
-- 跨来源标题去重合并
-- 输出 JSON 至 `public/data/news.json`
 
 ---
 
@@ -129,50 +174,76 @@ Python 3 + requests + BeautifulSoup4 + lxml
 
 ```
 lv-xun-eco-news/
-├── public/
-│   ├── data/
-│   │   └── news.json              # 抓取的新闻数据（591 条）
-│   └── images/
-│       ├── hero-bg.png             # 首页背景图
-│       ├── news-1.png              # 新闻配图
-│       ├── news-2.png
-│       └── news-3.png
-├── src/
-│   ├── components/
-│   │   ├── home/
-│   │   │   ├── HeroSection.tsx     # 首页 Hero 横幅 + 统计数据
-│   │   │   ├── NewsSection.tsx     # 最新资讯 + 热门关注
-│   │   │   └── RegionBrowser.tsx   # 按省份浏览
-│   │   ├── layout/
-│   │   │   ├── Navbar.tsx          # 响应式导航栏
-│   │   │   └── Footer.tsx          # 页脚
-│   │   ├── news/
-│   │   │   └── NewsCard.tsx        # 新闻卡片（default/featured/compact）
-│   │   └── ui/
-│   │       ├── badge.tsx           # 徽章组件
-│   │       ├── button.tsx          # 按钮组件
-│   │       └── card.tsx            # 卡片组件
-│   ├── data/
-│   │   ├── news-service.ts        # 异步新闻数据服务（加载/筛选/分页）
-│   │   └── sources.ts             # 35 个新闻来源配置
-│   ├── lib/
-│   │   └── utils.ts               # 工具函数（cn）
-│   ├── pages/
-│   │   ├── HomePage.tsx            # 首页
-│   │   ├── NewsListPage.tsx        # 新闻列表页
-│   │   ├── NewsDetailPage.tsx      # 新闻详情页
-│   │   └── AboutPage.tsx           # 关于页
-│   ├── types/
-│   │   └── news.ts                # TypeScript 类型定义
-│   ├── App.tsx                     # 路由配置
-│   ├── index.css                   # 设计系统（CSS 变量/渐变/动画）
-│   └── main.tsx                    # 入口文件
-├── scraper.py                      # Python 新闻爬虫脚本
-├── scraper_fallback.json           # WAF/JS渲染站点的 fallback 预存数据
-├── package.json
-├── tailwind.config.ts
-├── tsconfig.json
-├── vite.config.ts
+├── docker-compose.yml                  # Docker Compose 编排（4 服务）
+│
+├── services/
+│   ├── api-service/                    # 业务层 — FastAPI 微服务
+│   │   ├── app/
+│   │   │   ├── config.py              # 配置（数据库连接、CORS）
+│   │   │   ├── database.py            # 异步数据库引擎 + 会话
+│   │   │   ├── main.py                # FastAPI 入口（CORS、路由注册）
+│   │   │   ├── models/                # SQLAlchemy ORM 模型
+│   │   │   │   ├── news.py            # 新闻模型
+│   │   │   │   ├── source.py          # 数据来源模型
+│   │   │   │   ├── scrape_log.py      # 抓取日志模型
+│   │   │   │   └── scrape_report.py   # 抓取报告模型
+│   │   │   ├── schemas/               # Pydantic 数据验证
+│   │   │   │   ├── news.py            # 新闻请求/响应 Schema
+│   │   │   │   ├── source.py          # 来源 Schema
+│   │   │   │   └── report.py          # 报告 Schema
+│   │   │   ├── repositories/          # 数据访问层（Repository 模式）
+│   │   │   │   ├── news_repo.py       # 新闻查询（筛选/分页/统计）
+│   │   │   │   ├── source_repo.py     # 来源查询
+│   │   │   │   └── report_repo.py     # 报告查询
+│   │   │   ├── services/              # 业务逻辑层
+│   │   │   │   └── news_service.py    # 新闻业务逻辑
+│   │   │   └── routers/               # API 路由
+│   │   │       ├── news.py            # /api/news/*
+│   │   │       ├── sources.py         # /api/sources/*
+│   │   │       └── reports.py         # /api/reports/*
+│   │   ├── init.sql                   # 数据库初始化（建表 + 35 来源）
+│   │   ├── requirements.txt
+│   │   └── Dockerfile
+│   │
+│   └── scraper-service/               # 爬虫微服务
+│       ├── scraper.py                 # 35 源爬虫（7 种解析策略）
+│       ├── scheduler.py               # APScheduler 定时调度（每天 08:00）
+│       ├── db_writer.py               # 数据库写入（UPSERT + 报告生成）
+│       ├── scraper_fallback.json      # WAF/JS 站点 fallback 数据
+│       ├── requirements.txt
+│       └── Dockerfile
+│
+├── web/                               # 表现层 — React SPA
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── home/
+│   │   │   │   ├── HeroSection.tsx    # 首页 Hero 横幅 + 统计
+│   │   │   │   ├── NewsSection.tsx    # 最新资讯 + 热门关注
+│   │   │   │   ├── RegionBrowser.tsx  # 按省份浏览
+│   │   │   │   └── LatestReportBanner.tsx  # 最新抓取报告摘要
+│   │   │   ├── layout/
+│   │   │   │   ├── Navbar.tsx         # 响应式导航栏
+│   │   │   │   └── Footer.tsx         # 页脚
+│   │   │   ├── news/
+│   │   │   │   └── NewsCard.tsx       # 新闻卡片
+│   │   │   └── ui/                    # 基础 UI 组件
+│   │   ├── data/
+│   │   │   └── news-service.ts        # API 调用服务（新闻 + 报告）
+│   │   ├── pages/
+│   │   │   ├── HomePage.tsx           # 首页
+│   │   │   ├── NewsListPage.tsx       # 新闻列表页
+│   │   │   ├── NewsDetailPage.tsx     # 新闻详情页
+│   │   │   ├── ReportsPage.tsx        # 抓取报告页
+│   │   │   └── AboutPage.tsx          # 关于页
+│   │   ├── types/news.ts             # TypeScript 类型定义
+│   │   ├── index.css                  # 设计系统（CSS 变量/渐变/动画）
+│   │   ├── App.tsx                    # 路由配置
+│   │   └── main.tsx                   # 入口
+│   ├── nginx.conf                     # Nginx 生产配置（SPA + API 反向代理）
+│   ├── vite.config.ts                 # Vite 配置（开发代理）
+│   ├── package.json
+│   └── Dockerfile                     # 多阶段构建（node -> nginx）
+│
 └── README.md
 ```
 
@@ -182,91 +253,97 @@ lv-xun-eco-news/
 
 ### 环境要求
 
-- Node.js >= 18
-- Python >= 3.8
-- npm 或 yarn
+- Docker Desktop >= 4.0
+- Docker Compose >= 2.0
+- Node.js >= 18（仅开发模式需要）
 
-### 安装依赖
+### 方式一：Docker Compose 一键部署（推荐）
 
 ```bash
-# 前端依赖
+# 克隆项目
+git clone https://github.com/bishengh/lv-xun-eco-news.git
+cd lv-xun-eco-news
+
+# 启动全部服务
+docker compose up -d
+
+# 查看服务状态
+docker ps
+```
+
+启动后：
+- 前端：http://localhost:3000
+- API：http://localhost:8000
+- API 文档：http://localhost:8000/docs
+- PostgreSQL：localhost:5432
+
+### 方式二：开发模式
+
+```bash
+# 1. 启动数据库和 API
+docker compose up -d postgres api-service
+
+# 2. 启动前端开发服务器（热更新）
+cd web
 npm install
-
-# 爬虫依赖
-pip install requests beautifulsoup4 lxml
-```
-
-### 抓取新闻数据
-
-```bash
-python scraper.py
-```
-
-运行后新闻数据将保存到 `public/data/news.json`。
-
-### 启动开发服务器
-
-```bash
 npm run dev
 ```
 
-访问 http://localhost:5173 查看网站。
+前端开发服务器：http://localhost:5173（自动代理 API 到 8000 端口）
 
-### 构建生产版本
+### 手动触发抓取
 
 ```bash
-npm run build
+# 立即执行一次抓取
+docker compose run --rm scraper-service python scraper.py
 ```
 
-构建产物输出至 `dist/` 目录。
+### 环境变量
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `DATABASE_URL` | `postgresql://lvxun:lvxun_2026@postgres:5432/lvxun` | 数据库连接 |
+| `MAX_NEWS` | `200` | 每来源最大抓取条数 |
+| `MAX_PAGES` | `6` | 每来源最大分页数 |
+| `DATE_DAYS` | `60` | 只保留近 N 天的新闻 |
+| `CRON_HOUR` | `8` | 定时抓取小时 |
+| `CRON_MINUTE` | `0` | 定时抓取分钟 |
+| `RUN_ON_START` | `false` | 启动时是否立即执行一次抓取 |
+| `TZ` | `Asia/Shanghai` | 时区 |
 
 ---
 
-## 开发过程
+## 技术细节
 
-### 第一步：设计与前端搭建
+### 爬虫
 
-1. 确立绿色主题设计系统（Deep Forest Green + Emerald + Gold Accent）
-2. 定义 CSS 自定义属性：颜色 token、渐变、阴影、动画
-3. 使用 AI 生成高质量配图（Hero 背景、新闻配图）
-4. 搭建组件体系：布局组件、UI 基础组件、新闻卡片组件
-5. 实现四个页面：首页、新闻列表、新闻详情、关于
-6. 全程 TypeScript 类型安全，零编译错误
+- 7 种页面解析策略：`dl/dt/dd`、`mobile_list`、`ul/li`、`table`、专用解析器（上海/江苏/江西/西藏/香港/澳门/台湾）
+- WAF 防护应对：Session cookie、Referer 伪造、fallback 预存数据
+- 数据库写入采用 `INSERT ... ON CONFLICT DO UPDATE`（UPSERT），保证幂等
+- 每次抓取自动生成报告（含每个来源的抓取条数、新增数、耗时、状态）
 
-### 第二步：新闻爬虫开发
+### API
 
-1. 研究全国各省市环保官网页面结构，归纳 7 种主要模式
-2. 编写 Python 爬虫，针对不同页面结构使用不同解析策略
-3. 实现自动分类（9 大类别）和关键词标签提取
-4. 实现跨来源新闻去重合并
-5. 首次运行成功抓取 **21 个来源、380 条新闻**
+- 异步架构：FastAPI + SQLAlchemy AsyncIO + asyncpg
+- Repository 模式分离数据访问逻辑
+- 支持多维组合筛选（地区 + 来源 + 分类 + 关键词 + 日期范围）
+- GIN 索引支持新闻标题全文搜索
 
-### 第三步：全量来源攻坚
+### 前端
 
-1. 逐一排查 14 个失败来源：SSL 错误、域名变更、WAF 拦截、JS 渲染、CDN 挑战
-2. 为 11 个来源修复 URL 或编写专用解析器（上海/西藏/江西/江苏/山东/宁夏等）
-3. 新增香港、澳门、台湾 3 个来源
-4. 为 WAF 拦截（湖北/甘肃）和 JS 渲染（江西）站点建立 fallback 预存数据机制
-5. 最终实现 **35/35 来源全部成功，591 条新闻**
-
-### 第四步：前后端对接
-
-1. 重构 `news-service.ts`：从 mock 数据改为异步加载 `news.json`
-2. 所有页面组件适配异步数据：`useState` + `useEffect` 模式
-3. 添加 loading 状态展示
-4. 浏览器端全页面验证通过
+- 设计系统：CSS 自定义属性（HSL 颜色 token、渐变、阴影、动画过渡）
+- 组件库：shadcn/ui 风格（button、card、badge）
+- 路由：react-router-dom v7
+- API 调用层统一封装，类型安全
 
 ---
 
-## 抓取结果统计
+## 版本历史
 
-| 指标 | 数值 |
-|------|------|
-| 配置来源总数 | 35 个 |
-| 成功抓取来源 | 35 个（100%） |
-| 抓取新闻总数 | 605 条 |
-| 去重后新闻数 | 591 条 |
-| 新闻分类覆盖 | 9 大类 |
+| 版本 | 日期 | 说明 |
+|------|------|------|
+| v0.2 | 2026-03-26 | 微服务架构重构 — PostgreSQL + FastAPI + Docker Compose + 定时抓取 + 抓取报告 |
+| v0.1 | 2026-03-25 | 初始版本 — React 前端 + Python 爬虫，35 源全量抓取 |
 
 ---
 

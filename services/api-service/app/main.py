@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import news, sources
+from app.routers import news, sources, reports
 
 
 @asynccontextmanager
@@ -36,6 +36,7 @@ app.add_middleware(
 # 路由注册
 app.include_router(news.router)
 app.include_router(sources.router)
+app.include_router(reports.router)
 
 
 @app.get("/api/health")

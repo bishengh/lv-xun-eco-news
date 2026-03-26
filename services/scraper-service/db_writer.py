@@ -125,3 +125,70 @@ def get_existing_urls() -> set:
     finally:
         cur.close()
         conn.close()
+
+
+# ─── 抓取报告 ───
+
+def create_report(report_date, started_at) -> int:
+    """创建抓取报告记录，返回 report_id"""
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            INSERT INTO scrape_reports (report_date, started_at, status)
+            VALUES (%s, %s, 'running')
+            RETURNING id
+            """,
+            (report_date, started_at),
+        )
+        report_id = cur.fetchone()[0]
+        conn.commit()
+        return report_id
+    except Exception as e:
+        conn.rollback()
+        print(f"[DB ERROR] 创建报告失败: {e}")
+        raise
+    finally:
+        cur.close()
+        conn.close()
+
+
+def update_report(report_id: int, ended_at, total_sources: int, success_sources: int,
+                  failed_sources: int, total_items: int, new_items: int,
+                  duration_seconds: float, source_details: list, status: str,
+                  error_message: str = None):
+    """更新抓取报告"""
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        import json
+        cur.execute(
+            """
+            UPDATE scrape_reports SET
+                ended_at = %s,
+                total_sources = %s,
+                success_sources = %s,
+                failed_sources = %s,
+                total_items = %s,
+                new_items = %s,
+                duration_seconds = %s,
+                source_details = %s::jsonb,
+                status = %s,
+                error_message = %s
+            WHERE id = %s
+            """,
+            (
+                ended_at, total_sources, success_sources, failed_sources,
+                total_items, new_items, duration_seconds,
+                json.dumps(source_details, ensure_ascii=False),
+                status, error_message, report_id,
+            ),
+        )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"[DB ERROR] 更新报告失败: {e}")
+    finally:
+        cur.close()
+        conn.close()

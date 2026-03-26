@@ -1195,13 +1195,25 @@ def main():
     load_fallback_data()
 
     # 导入数据库写入模块
-    from db_writer import upsert_news, log_scrape
+    from db_writer import upsert_news, log_scrape, create_report, update_report
+
+    scrape_start = datetime.now()
+    report_date = scrape_start.date()
+
+    # 创建报告记录
+    report_id = None
+    try:
+        report_id = create_report(report_date, scrape_start)
+        print(f"📋 抓取报告 #{report_id} 已创建")
+    except Exception as e:
+        print(f"⚠️  创建报告失败: {e}")
 
     all_news = []
     stats = {'success': 0, 'failed': 0, 'total_items': 0, 'new_items': 0}
+    source_details = []
 
     for source_cfg in SOURCES:
-        scrape_start = datetime.now()
+        source_start = datetime.now()
         items = scrape_source(source_cfg)
         source_info = {
             'id': source_cfg['id'],
@@ -1209,6 +1221,16 @@ def main():
             'shortName': source_cfg['shortName'],
             'region': source_cfg['region'],
             'category': source_cfg['category'],
+        }
+
+        source_detail = {
+            'source_id': source_cfg['id'],
+            'source_name': source_cfg['shortName'],
+            'items_found': 0,
+            'items_new': 0,
+            'status': 'failed',
+            'duration': 0,
+            'error': None,
         }
 
         if items:
@@ -1225,15 +1247,28 @@ def main():
             try:
                 total_written, new_written = upsert_news(items)
                 stats['new_items'] += new_written
-                log_scrape(source_cfg['id'], scrape_start, datetime.now(), len(items), new_written, 'success')
+                log_scrape(source_cfg['id'], source_start, datetime.now(), len(items), new_written, 'success')
                 print(f"  [DB] {source_cfg['shortName']}: {total_written} 条写入, {new_written} 条新增")
+                source_detail.update({
+                    'items_found': len(items),
+                    'items_new': new_written,
+                    'status': 'success',
+                })
             except Exception as e:
-                log_scrape(source_cfg['id'], scrape_start, datetime.now(), len(items), 0, 'db_error', str(e))
+                log_scrape(source_cfg['id'], source_start, datetime.now(), len(items), 0, 'db_error', str(e))
                 print(f"  [DB ERROR] {source_cfg['shortName']}: {e}")
+                source_detail.update({
+                    'items_found': len(items),
+                    'status': 'db_error',
+                    'error': str(e)[:200],
+                })
         else:
             stats['failed'] += 1
-            log_scrape(source_cfg['id'], scrape_start, datetime.now(), 0, 0, 'failed', '无法抓取到数据')
+            log_scrape(source_cfg['id'], source_start, datetime.now(), 0, 0, 'failed', '无法抓取到数据')
+            source_detail['error'] = '无法抓取到数据'
 
+        source_detail['duration'] = round((datetime.now() - source_start).total_seconds(), 2)
+        source_details.append(source_detail)
         all_news.extend(items)
         time.sleep(0.5)
 
@@ -1258,12 +1293,35 @@ def main():
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(output_data, f, ensure_ascii=False, indent=2)
 
+    scrape_end = datetime.now()
+    duration = (scrape_end - scrape_start).total_seconds()
+
+    # 更新报告
+    if report_id:
+        try:
+            update_report(
+                report_id=report_id,
+                ended_at=scrape_end,
+                total_sources=len(SOURCES),
+                success_sources=stats['success'],
+                failed_sources=stats['failed'],
+                total_items=stats['total_items'],
+                new_items=stats['new_items'],
+                duration_seconds=round(duration, 2),
+                source_details=source_details,
+                status='completed',
+            )
+            print(f"📋 抓取报告 #{report_id} 已完成")
+        except Exception as e:
+            print(f"⚠️  更新报告失败: {e}")
+
     print(f"\n{'='*60}")
     print(f"  抓取完成!")
     print(f"  成功来源: {stats['success']}/{len(SOURCES)}")
     print(f"  失败来源: {stats['failed']}/{len(SOURCES)}")
     print(f"  总新闻数: {len(all_news)} 条 (去重后)")
     print(f"  数据库新增: {stats['new_items']} 条")
+    print(f"  耗时: {duration:.1f} 秒")
     print(f"  JSON 备份: {output_path}")
     print(f"{'='*60}")
 

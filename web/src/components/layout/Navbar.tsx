@@ -7,6 +7,7 @@ import { useState } from 'react'
 const navLinks = [
   { label: '首页', href: '/' },
   { label: '新闻列表', href: '/news' },
+  { label: '抓取报告', href: '/reports' },
   { label: '关于', href: '/about' },
 ]
 

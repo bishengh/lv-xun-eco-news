@@ -44,6 +44,24 @@ CREATE TABLE IF NOT EXISTS scrape_logs (
     error_message   TEXT
 );
 
+-- ─── 抓取报告表 ───
+CREATE TABLE IF NOT EXISTS scrape_reports (
+    id              SERIAL          PRIMARY KEY,
+    report_date     DATE            NOT NULL,
+    started_at      TIMESTAMPTZ     NOT NULL,
+    ended_at        TIMESTAMPTZ,
+    total_sources   INTEGER         DEFAULT 0,
+    success_sources INTEGER         DEFAULT 0,
+    failed_sources  INTEGER         DEFAULT 0,
+    total_items     INTEGER         DEFAULT 0,
+    new_items       INTEGER         DEFAULT 0,
+    duration_seconds FLOAT          DEFAULT 0,
+    source_details  JSONB           DEFAULT '[]'::jsonb,
+    status          VARCHAR(20)     DEFAULT 'running',
+    error_message   TEXT,
+    created_at      TIMESTAMPTZ     DEFAULT NOW()
+);
+
 -- ─── 索引 ───
 CREATE INDEX idx_news_source_id  ON news(source_id);
 CREATE INDEX idx_news_date       ON news(date DESC);
@@ -51,6 +69,8 @@ CREATE INDEX idx_news_category   ON news(category);
 CREATE INDEX idx_news_created_at ON news(created_at DESC);
 CREATE INDEX idx_news_title_gin  ON news USING gin(to_tsvector('simple', title));
 CREATE INDEX idx_scrape_logs_source ON scrape_logs(source_id);
+CREATE INDEX idx_reports_date   ON scrape_reports(report_date DESC);
+CREATE INDEX idx_reports_status ON scrape_reports(status);
 
 -- ─── 初始数据：35 个来源 ───
 INSERT INTO sources (id, name, short_name, region, url, category) VALUES

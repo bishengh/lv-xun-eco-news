@@ -38,17 +38,22 @@ services:
       postgres:
         condition: service_healthy
 
-  # ─── 爬虫服务 ───
+  # ─── 爬虫服务（定时调度：每天 08:00 自动抓取） ───
   scraper-service:
     build:
       context: ./services/scraper-service
       dockerfile: Dockerfile
     container_name: lvxun-scraper
+    restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://lvxun:lvxun_2026@postgres:5432/lvxun
       MAX_NEWS: "200"
       MAX_PAGES: "6"
       DATE_DAYS: "60"
+      TZ: Asia/Shanghai
+      CRON_HOUR: "8"
+      CRON_MINUTE: "0"
+      RUN_ON_START: "false"
     depends_on:
       postgres:
         condition: service_healthy

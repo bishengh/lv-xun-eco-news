@@ -171,3 +171,52 @@ export async function fetchStats() {
 }
 
 export function getCategories(): string[] { return categories }
+
+// ─── 抓取报告 API ───
+
+export interface ScrapeSourceDetail {
+  source_id: string
+  source_name: string
+  items_found: number
+  items_new: number
+  status: string
+  duration: number
+  error: string | null
+}
+
+export interface ScrapeReport {
+  id: number
+  report_date: string | null
+  started_at: string | null
+  ended_at: string | null
+  total_sources: number
+  success_sources: number
+  failed_sources: number
+  total_items: number
+  new_items: number
+  duration_seconds: number
+  source_details: ScrapeSourceDetail[]
+  status: string
+  error_message: string | null
+  created_at: string | null
+}
+
+export interface ReportListResponse {
+  items: ScrapeReport[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
+export async function fetchReports(page = 1, pageSize = 20): Promise<ReportListResponse> {
+  return apiFetch<ReportListResponse>('/api/reports', { page, page_size: pageSize })
+}
+
+export async function fetchReportById(id: number): Promise<ScrapeReport> {
+  return apiFetch<ScrapeReport>(`/api/reports/${id}`)
+}
+
+export async function fetchLatestReport(): Promise<ScrapeReport | null> {
+  return apiFetch<ScrapeReport | null>('/api/reports/latest')
+}
